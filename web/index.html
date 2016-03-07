@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Welcome to GopherJS with jQuery</title>
+</head>
+  <style>
+    #filelist {
+      display: inline-block;
+      background: #eee;
+      width: 40%;
+      float: left;
+    }
+    #filecontent {
+      background: #9ee;
+      display: inline-block;
+      width: 60%;
+      float: right;
+    }
+    span.fileentry {
+      display: block;
+    }
+    span.content-line {
+      font-family: 'Source Code Pro', monospace;
+      display: block;
+      white-space: pre;
+    }
+  </style>
+  <script
+     type="text/javascript"
+     src="gotiles.js">
+  </script>
+  <div id="main">
+  <div id="filelist" >
+  </div>
+  <div id="filecontent"
+       >empty</div>
+  </div>
+  <script
+     type="text/javascript" >
+    ui = gotiles.NewUI("gitiles", "master", "/");
+  </script>
+</body>
+</html>
