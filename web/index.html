@@ -5,6 +5,11 @@
     <title>Welcome to GopherJS with jQuery</title>
 </head>
   <style>
+    #breadcrumbs {
+      display: block;
+      background: #fee;
+      width: 100%;
+    }
     #filelist {
       display: inline-block;
       background: #eee;
@@ -17,6 +22,7 @@
       width: 60%;
       float: right;
     }
+
     span.fileentry {
       display: block;
     }
@@ -28,17 +34,16 @@
   </style>
   <script
      type="text/javascript"
-     src="gotiles.js">
+     src="web.js">
   </script>
   <div id="main">
-  <div id="filelist" >
-  </div>
-  <div id="filecontent"
-       >empty</div>
+    <div id="breadcrumbs">breadcrumb</div>
+    <div id="filelist"></div>
+    <div id="filecontent"></div>
   </div>
   <script
      type="text/javascript" >
-    ui = gotiles.NewUI("gitiles", "master", "/");
+    ui = gotiles.NewUI("lilypond", "master", "po");
   </script>
 </body>
 </html>

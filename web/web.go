@@ -15,16 +15,23 @@
 package main
 
 import (
-	"bytes"
+	"fmt"
 	"html"
 	"path/filepath"
 	"strings"
+	"time"
+	"log"
 
 	"honnef.co/go/js/dom"
 	"github.com/gopherjs/gopherjs/js"
 	"github.com/hanwen/gotiles"
 )
 
+
+func timer(name string) func() {
+	start := time.Now()
+	return func() { log.Println("timer: ", name, time.Now().Sub(start)) }
+}
 
 var service = gotiles.NewService("http://localhost:8080")
 var alert *js.Object
@@ -37,27 +44,35 @@ func main() {
 }
 
 func (ui *UI) fetchContent(addr gotiles.TreeAddr) {
-	c, err := service.BlobContent(&addr)
+	defer timer("fetchContent")()
+	c, err := service.BlobContentString(&addr)
 	if err != nil {
 		ui.contentPane.SetTextContent(html.EscapeString(err.Error()))
 		return
 	}
 
 	ui.contentPane.SetTextContent("")
-	lines := bytes.Split(c, []byte("\n"))
+	lines := strings.Split(c, "\n")
+
+	base := ui.doc.CreateElement("span")
+	base.SetAttribute("class", "content-line")
 	for _, l := range lines {
-		span := ui.doc.CreateElement("span")
-		span.SetAttribute("class", "content-line")
-		span.SetTextContent(string(l))
+		if len(l) == 0 {
+			l = " "
+		}
+		span := base.CloneNode(false)
+		span.SetTextContent(l)
 		ui.contentPane.AppendChild(span)
 	}
-}
 
+	ui.breadcrumb.SetTextContent(fmt.Sprint("%v", addr))
+}
 
 type UI struct {
 	addr gotiles.TreeAddr
 
 	doc dom.Document
+	breadcrumb dom.Element
 	contentPane dom.Element
 	fileList  dom.Element
 }
@@ -66,15 +81,15 @@ func NewUI(repo, branch, dir string) *js.Object {
 	doc := dom.GetWindow().Document()
 	rv := &UI{
 		doc: doc,
-		addr: gotiles.TreeAddr{
+		contentPane: doc.GetElementByID("filecontent"),
+		fileList: doc.GetElementByID("filelist"),
+		breadcrumb: doc.GetElementByID("breadcrumbs"),
+	}
+	go rv.fetchFileList(gotiles.TreeAddr{
 			Repo:   repo,
 			Branch: branch,
 			Path:    dir,
-		},
-		contentPane: doc.GetElementByID("filecontent"),
-		fileList: doc.GetElementByID("filelist"),
-	}
-	go rv.fetchFileList()
+	})
 	return js.MakeWrapper(rv)
 }
 
@@ -92,13 +107,38 @@ func (ui *UI) onFileListClick(e dom.Event) {
 	go ui.fetchContent(addr)
 }
 
-func (ui *UI) fetchFileList() {
-	t, err := service.Tree(&ui.addr)
+func (ui *UI) onFileListClickTree(e dom.Event) {
+	e.StopPropagation()
+
+	// todo - don't go through DOM
+	name := e.Target().TextContent()
+
+	addr := ui.addr
+	if addr.Path == "" {
+		addr.Path = "."
+	}
+	addr.Path = strings.TrimLeft(filepath.Join(addr.Path, name), "/")
+	go ui.fetchFileList(addr)
+}
+
+func (ui *UI) fetchFileList(addr gotiles.TreeAddr) {
+	defer timer("fetchFileList")()
+	t, err := service.Tree(&addr)
 	if err != nil {
 		alert.Invoke(html.EscapeString(err.Error()))
 		return
 	}
 
+	if !(addr.Path == "" || addr.Path == ".") {
+		t.Entries = append(t.Entries,
+			gotiles.TreeEntry{
+				Name: "..",
+				Mode: 040000,
+				Type: "tree",
+			})
+	}
+
+	ui.fileList.SetTextContent("")
 	for _, e := range t.Entries {
 		t := e.Type
 		switch e.Mode {
@@ -114,7 +154,12 @@ func (ui *UI) fetchFileList() {
 		span.SetTextContent(e.Name)
 		if t == "blob" || t == "xblob" {
 			span.AddEventListener("click", true, ui.onFileListClick)
+		} else if t == "tree" {
+			span.AddEventListener("click", true, ui.onFileListClickTree)
 		}
+
 		ui.fileList.AppendChild(span)
 	}
+
+	ui.addr = addr
 }
