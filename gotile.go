@@ -17,7 +17,6 @@ package gotiles
 
 import (
 	"bytes"
-	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -48,20 +47,20 @@ type TreeOrErrorResponse struct {
 	Error error
 }
 
-func (s *Service) BlobContent(addr *TreeAddr) ([]byte, error) {
+func (s *Service) BlobContentString(addr *TreeAddr) (string, error) {
 	url := fmt.Sprintf("%s/%s/+show/%s/%s?format=TEXT", s.addr, addr.Repo, addr.Branch, addr.Path)
 	resp, err := http.Get(url)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	defer resp.Body.Close()
 	c, err :=  ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	out, err := base64.StdEncoding.DecodeString(string(c))
-	return []byte(out), err
+	out := nativeAtoB(c)
+	return out, err
 }
 
 func (s *Service) Tree(addr *TreeAddr) (*TreeResponse, error) {
